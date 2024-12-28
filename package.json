@@ -7,7 +7,6 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
-    
   },
   "keywords": [],
   "author": "",
@@ -24,6 +23,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.2",
     "nodemailer": "^6.9.16",
+    "react-scripts": "^5.0.1",
     "twilio": "^5.4.0"
   },
   "devDependencies": {
