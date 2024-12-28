@@ -2,6 +2,30 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const nodemailer = require('nodemailer')
+const transporter = nodemailer.createTransport({
+  service: 'gmail', 
+  auth: {
+      user: 'testmailalert20@gmail.com', 
+      pass: 'qwghdvduxumxjidk', 
+  },
+});
+
+const sendEmail = async (from, to, subject, text) => {
+  const mailOptions = {
+      from: from, 
+      to: to,
+      subject: subject, 
+      text: text, 
+  };
+
+  try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Email sent: ' + info.response);
+  } catch (error) {
+      console.error('Error sending email:', error);
+  }
+};
 
 // Helper function to generate OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
