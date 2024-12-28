@@ -13,6 +13,7 @@ app.use(express.json());
 // Routes
 app.use("/api", authRoutes);
 
+
 // MongoDB Connection
 mongoose
   .connect("mongodb+srv://lovelyvampire563:1234567890@cluster0.ogaak.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0/sample", {

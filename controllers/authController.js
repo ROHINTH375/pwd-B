@@ -2,10 +2,16 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const twilio = require("twilio");
+
+// Twilio credentials
+const accountSid = "your_twilio_account_sid"; // Replace with your Twilio Account SID
+const authToken = "your_twilio_auth_token"; // Replace with your Twilio Auth Token
+const client = twilio(accountSid, authToken);
 
 // Helper function to generate OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
-
+const otpStore = {};
 // Signup
 exports.signup = async (req, res) => {
   const { email, password, mobile } = req.body;
@@ -78,25 +84,24 @@ exports.loginWithOTP = async (req, res) => {
 };
 
 // Generate OTP
+// Generate OTP and send SMS
 exports.generateOTP = async (req, res) => {
   const { mobile } = req.body;
 
   try {
-    const user = await User.findOne({ mobile });
-    if (!user) {
-      return res.status(404).json({ message: "User not found!" });
-    }
+    const otp = crypto.randomInt(100000, 999999); // Generate 6-digit OTP
+    otpStore[mobile] = { otp, expiresAt: Date.now() + 5 * 60 * 1000 }; // Expire in 5 mins
 
-    const otp = generateOTP();
-    user.otp = otp;
-    await user.save();
-
-    // TODO: Integrate with an SMS API to send the OTP
-    console.log(`OTP for ${mobile}: ${otp}`);
+    // Send SMS
+    await client.messages.create({
+      body: `Your login OTP is ${otp}. It will expire in 5 minutes.`,
+      from: "+1234567890", // Your Twilio number
+      to: mobile,
+    });
 
     res.status(200).json({ message: "OTP sent successfully!" });
   } catch (error) {
-    res.status(500).json({ message: "Failed to generate OTP. Please try again.", error });
+    res.status(500).json({ message: "Failed to send OTP.", error: error.message });
   }
 };
 
@@ -131,6 +136,59 @@ exports.resetPassword = async (req, res) => {
       message: "Failed to reset password. Please try again.",
       error: error.message || "Internal server error.",
     });
+  }
+};
+
+exports.requestOTP = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Find the user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found!" });
+    }
+
+    // Generate a new OTP
+    const otp = generateOTP();
+
+    // Save OTP and expiry time to the user's record
+    user.otp = otp;
+    user.otpExpires = Date.now() + 15 * 60 * 1000; // OTP valid for 15 minutes
+    await user.save();
+
+    // Simulate sending OTP via email (replace with real email API integration)
+    console.log(`OTP for ${email}: ${otp}`);
+
+    res.status(200).json({ message: "OTP sent successfully!" });
+  } catch (error) {
+    console.error("Error in requestOTP:", error);
+    res.status(500).json({ message: "Failed to generate OTP. Please try again.", error });
+  }
+};
+
+
+exports.verifyOTP = async (req, res) => {
+  const { mobile, otp } = req.body;
+
+  try {
+    const storedOTP = otpStore[mobile];
+    if (!storedOTP) {
+      return res.status(400).json({ message: "OTP expired or not found." });
+    }
+
+    if (storedOTP.otp !== parseInt(otp, 10)) {
+      return res.status(400).json({ message: "Invalid OTP." });
+    }
+
+    if (Date.now() > storedOTP.expiresAt) {
+      return res.status(400).json({ message: "OTP has expired." });
+    }
+
+    delete otpStore[mobile]; // Clear OTP after successful verification
+    res.status(200).json({ message: "OTP verified successfully!" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to verify OTP.", error: error.message });
   }
 };
 
